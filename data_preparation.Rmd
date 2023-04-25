@@ -1,22 +1,122 @@
 ---
-title: "Data preparation"
-output: html_document
+output:
+  html_document:
+    theme: flatly
+    toc: yes
+    toc_depth: 3
+    toc_float:
+      collapsed: no
+      smooth_scroll: yes
+    code_folding: hide
 ---
 
 ```{r setup, include=FALSE}
-setwd("C:/Projects/MiE")
+setwd("C:/Projects/RemoteWorkSurvey")
 library(tidyverse)
 library(plotly)
 library(shiny)
+library(DT)
 knitr::opts_chunk$set(fig.width=12, fig.height=6)
+
+show_hist <- function(var, show_title = FALSE) {
+  plot_ly(x = df[[var]], type = "histogram", color = I("#eab676")) %>% layout(bargap = 0.1, xaxis = list(title = ifelse(show_title, var, "")))
+}
 ```
 
+<style type="text/css">
+.main-container {
+  width: 2600px;
+  max-width: 98% !important;
+  margin-left: 2px;
+  margin-right: 5px;
+}
+
+.tocify .tocify-header {
+    top: 5px;
+    left: 5px;
+    right: 5px;
+    margin-right: 5px;
+    #width: 300px;
+    #height: 40px;
+}
+
+
+.tocify {
+    /* width: 20%; */
+    max-height: 95%;
+    overflow: auto;
+    margin-left: 2%;
+    /* position: fixed; */
+    border: 1px solid #ccc;
+    border-radius: 6px;
+}
+
+div.tocify {
+    width: 20%;
+    max-width: 300px;
+    max-height: 50%;
+}
+
+@media (min-width: 1500px)
+.col-md-3 {
+    width: 15%;
+}
+
+
+.toc-content {
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+h1 {
+  font-weight: bold;
+  color: #2c3e50;
+  text-align:center;
+}
+
+h2 {
+  color: #2c3e50;
+}
+
+
+.leaflet-container {
+  background: #FFFFFF;
+}
+
+.list-group-item.active, .list-group-item.active:hover, .list-group-item.active:focus {
+    z-index: 2;
+    color: #ffffff;
+    background-color: #2c3e50;
+    border-color: #2c3e50;
+}
+
+.box {
+  float: left;
+  height: 20px;
+  width: 20px;
+  margin-bottom: 15px;
+  border: 1px solid black;
+  clear: both;
+}
+
+#TOC {
+    margin: 5px 0px 5px 0px;
+}
+
+</style>
+
+# Introduction
+
+<div style="text-align: justify;font-size: 16px;">
+
 The following report presents the data preparation process for the [Remote Working Survey](https://www.kaggle.com/datasets/melodyyiphoiching/remote-working-survey?select=2020_rws.csv), conducted in Australian state of New South Wale in August-September 2020.
-The resulted dataset will be further investigated in the STATA statistical package to gain significant insights from the data.
+The cleaned-up dataset will be further investigated in the STATA statistical package to gain significant insights from the data and explore the factors influencing employees' productivity.
 
-First of all, we will start the data preparation with renaming columns, as the existing ones are namely the list of questions.
+First of all, the variables in the dataset will be renamed, as the existing ones are namely the list of questions, which is hard both to read and use during preparation. Moreover, variables containing last year's expressions regarding the remote or hybrid working systems will not be taken under consideration as a big bias in results is assumed due to completely new experience for many of the workers.
 
-```{r, warning=FALSE, message=FALSE, echo=FALSE}
+</div>
+
+```{r, warning=FALSE, message=FALSE}
 data_raw <- data.table::fread("data/2020_rws.csv", data.table = FALSE) %>% 
   as_tibble() %>% 
   select(-contains("last year"))
@@ -37,54 +137,101 @@ names_new <- c(
   "wa4", "ba5", "wa5", "ba6", "wa6"
 )
 
-switch_answer <- function(x) {
-  switch(x, "Strongly disagree" = "1", "Somewhat disagree" = "2", "Neither agree nor disagree" = "3", "Somewhat agree" = "4", "Strongly agree" = "5", x)
-}
-
 df <- data_raw %>% `colnames<-`(names_new)
 ```
 
-There are 4 conventions assumed for te following dataset:
--bp columns means answers for the question *From the following, please select the most significant barrier to doing your work remotely*,
-sp — *From the following, please select the least significant barrier to doing your work remotely*,
-ba — *Compare remote working to working at your employer’s workplace. Select the best aspect of remote working for you*,
-wa — *Compare remote working to working at your employer’s workplace. Select the worst aspect of remote working for you*
+<div style="text-align: justify;font-size: 16px;">
 
-From now on, we could continue the initial data investigation process.
+There are also 4 conventions assumed for new variables' names:
 
-Let's have a look at *Age* column, which will be the difference between *YearBorn* column and *2020*
+- bp columns means answers for the question *From the following, please select the most significant barrier to doing your work remotely*,
+- sp — for the question *From the following, please select the least significant barrier to doing your work remotely*,
+- ba — *Compare remote working to working at your employer’s workplace. Select the best aspect of remote working for you*,
+- wa — *Compare remote working to working at your employer’s workplace. Select the worst aspect of remote working for you*
 
-```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE}
+From now on, we could continue the data investigation and preparation process.
+
+</div>
+
+<br>
+<br>
+<br>
+
+# Age
+
+<div style="text-align: justify;font-size: 16px;">
+
+Let's have a look at *Age* column, is the difference between *YearBorn* column and *2020*:
+
+</div>
+
+```{r, warning=FALSE, message=FALSE}
 df <- df %>% mutate(Age = 2020-YearBorn, .keep = "unused")
-
-df %>% plot_ly(x = ~ Age, type = "histogram") %>% layout(bargap = 0.1)
 ```
 
-We notice that there are 4 significant outliers in the Age distribution. For now, we will keep 2 respondents with Age around 80 and drop 2 definitely wrong answers.
+```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE, out.width="100%"}
+show_hist("Age")
+```
 
-Going further, we will look at the gender distribution in the dataset
-```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE}
+<div style="text-align: justify;font-size: 16px;">
+
+We notice that there are 4 significant outliers in the Age distribution. For now, we will keep 2 respondents with Age around 80 and drop only 2 answers where Age was greater than 100.
+
+</div>
+
+```{r, warning=FALSE, message=FALSE}
 df <- df %>% filter(Age < 100)
-
-df %>% plot_ly(x = ~ Gender, type = "histogram") %>% layout(bargap = 0.1)
 ```
 
-As we could see, there are 200 more men in the dataset. Moreover, we notice 2 NA's, which will be thrown away as their amount is too insignificant to keep.
+<br>
+<br>
+<br>
 
-Next, we will look at the *Industry*'s and *IndustryAdv*'s distributions.
+# Gender
 
-```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE}
+<div style="text-align: justify;font-size: 16px;">
+
+Going further, we will take a closer look at the *Gender* distribution in the dataset.
+
+</div>
+
+```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE, out.width="100%"}
+show_hist("Gender")
+```
+
+<div style="text-align: justify;font-size: 16px;">
+
+As we could see, there are 200 more men than women. What is more, there are 2 answers missing; in this case they will be just excluded from the final dataset as there is no reason to consider such a category statistically significant.
+
+</div>
+
+```{r, warning=FALSE, message=FALSE}
 df <- df %>% filter(Gender != "Rather not say")
-
-fluidRow(
-  column(width = 6, df %>% plot_ly(x = ~ Industry, type = "histogram") %>% layout(bargap = 0.1)),
-  column(width = 6, df %>% plot_ly(x = ~ IndustryAdv, type = "histogram") %>% layout(bargap = 0.1))
-)
 ```
 
-IndustryAdv column seems to be too diversified to be used in a sample of 1500 respondents. Even the Industry column looks like too rare for some categories. Therefore, we will recode the Industry column to a new one called Sector, which will be divided into 4 categories: primary and other (farming, mining, etc.), secondary (manufacturing, etc.), tertiary quinary (public services, healthcare, etc.) and tertuary quaternary (intellectual professionals).
+<br>
+<br>
+<br>
 
-```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE}
+# Industry
+
+<div style="text-align: justify;font-size: 16px;">
+
+Next, we will examine the *Industry*'s and *IndustryAdv*'s distributions.
+
+</div>
+
+```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE, out.width="100%"}
+fluidRow(column(width = 6, show_hist("Industry", T)), column(width = 6, show_hist("IndustryAdv", T)))
+```
+
+<div style="text-align: justify;font-size: 16px;">
+
+IndustryAdv column seems to be too diversified to be used in a sample of 1500 respondents. Even the Industry column seems too rare for some categories. Therefore, we will recode the Industry column to a new one called Sector, which will be divided into 4 categories: primary and other (farming, mining, etc.), secondary (manufacturing, etc.), tertiary quinary (public services, healthcare, etc.) and tertiary quaternary (intellectual professionals).
+
+</div>
+
+```{r, warning=FALSE, message=FALSE}
 switch_industry <- function(x) {
   switch(
     x,
@@ -110,30 +257,46 @@ switch_industry <- function(x) {
     x
   )
 }
-df <- df %>% mutate(Sector = vapply(Industry, switch_industry, character(1), USE.NAMES = FALSE)) %>% select(-c(Industry, IndustryAdv))
-
-df %>% plot_ly(x = ~ Sector, type = "histogram") %>% layout(bargap = 0.1)
+df <- df %>% mutate(Sector = map_chr(Industry, switch_industry)) %>% select(-c(Industry, IndustryAdv))
 ```
 
-Current dataset contains responses from people working in the tertiary sector mainly, which seems quite obvious as it is hard to imagine a farmer working 100% remotely. Therefore, it may be unnecessary to use this variable as a predictor.
+```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE, out.width="100%"}
+show_hist("Sector", T)
+```
 
-We will proceed the analysis with investigation of position-related columns: *Occupation*, *OccupationAdv*, *IsManager*
+<div style="text-align: justify;font-size: 16px;">
 
+Current dataset contains responses from people working in the tertiary sector mainly, which seems quite obvious as it is hard to imagine a farmer working 100% remotely. Considering that, it might be unnecessary to use this variable as a predictor.
 
-```{r, warning=TRUE, message=TRUE, fig.show="hold", echo=FALSE}
-df <- df %>% filter(Gender != "Rather not say")
+</div>
 
+<br>
+<br>
+<br>
+
+# Occupation
+
+<div style="text-align: justify;font-size: 16px;">
+
+We will proceed with analyzing the followng columns: *Occupation*, *OccupationAdv*, *IsManager*
+
+</div>
+
+```{r, warning=TRUE, message=TRUE, fig.show="hold", echo=FALSE, out.width="100%"}
 fluidRow(
-  column(width = 4, df %>% plot_ly(x = ~ Occupation, type = "histogram") %>% layout(bargap = 0.1)),
-  column(width = 4, df %>% plot_ly(x = ~ OccupationAdv, type = "histogram") %>% layout(bargap = 0.1)),
-  column(width = 4, df %>% plot_ly(x = ~ IsManager, type = "histogram") %>% layout(bargap = 0.1))
+  column(width = 4, show_hist("Occupation", T)),
+  column(width = 4, show_hist("OccupationAdv", T)),
+  column(width = 4, show_hist("IsManager", T))
 )
 ```
 
-Unfortunately, as IsManager column contained missing observations, it won't be used as regressor. Furthermore, the OccupationAdv column will be dropped, just as the IndustryAdv. Finally, all the minor categories for the Occupation variable will be renamed to 'Other'
+<div style="text-align: justify;font-size: 16px;">
 
+Unfortunately, as IsManager column contained missing observations, it won't be used as a regressor. Furthermore, the OccupationAdv column will be dropped, just as the IndustryAdv. Finally, all the minor categories for the Occupation variable will be renamed to 'Other'
 
-```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE}
+</div>
+
+```{r, warning=FALSE, message=FALSE}
 switch_occupation <- function(x) {
   switch(
     x,
@@ -142,36 +305,52 @@ switch_occupation <- function(x) {
     "Machinery operators and drivers" = "Other",
     "Sales" = "Other",
     "Technicians and trades" = "Other",
+    "Professionals" = "Professional",
+    "Managers" = "Manager",
+    "Clerical and administrative" = "Clerk",
     x
   )
 }
 
-df <- df %>% mutate(Occupation = vapply(Occupation, switch_occupation, character(1), USE.NAMES = FALSE)) %>% select(-c(IsManager, OccupationAdv))
-
-df %>% plot_ly(x = ~ Occupation, type = "histogram") %>% layout(bargap = 0.1)
+df <- df %>% mutate(Occupation = map_chr(Occupation, switch_occupation)) %>% select(-c(IsManager, OccupationAdv))
 ```
 
-Next, we will investigate the *CompanySize*, *HouseHold*, *Experience*, *Transportation* columns
+```{r, warning=TRUE, message=TRUE, fig.show="hold", echo=FALSE, out.width="100%"}
+show_hist("Occupation", T)
+```
 
+<br>
+<br>
+<br>
 
-```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE}
+# Company size, household, experience & transportation
+
+<div style="text-align: justify;font-size: 16px;">
+
+Next, we will investigate the *CompanySize*, *HouseHold*, *Experience*, *Transportation* columns.
+
+</div>
+
+```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE, out.width="100%"}
 fluidRow(
-  column(width = 6, df %>% plot_ly(x = ~ CompanySize, type = "histogram") %>% layout(bargap = 0.1)),
-  column(width = 6, df %>% plot_ly(x = ~ HouseHold, type = "histogram") %>% layout(bargap = 0.1))
+  column(width = 6, show_hist("CompanySize", T)),
+  column(width = 6, show_hist("HouseHold", T))
 )
 ```
 
-```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE}
+```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE, out.width="100%"}
 fluidRow(
-  column(width = 6, df %>% plot_ly(x = ~ Experience, type = "histogram") %>% layout(bargap = 0.1)),
-  column(width = 6, df %>% plot_ly(x = ~ Transportation, type = "histogram") %>% layout(bargap = 0.1))
+  column(width = 6, show_hist("Experience", T)),
+  column(width = 6, show_hist("Transportation", T))
 )
 ```
 
+<div style="text-align: justify;font-size: 16px;">
 
-Transportation and Experience columns will be kept as they are. In case of CompanySize, though, it will be restricted to 3 categories: 1-19, 20-199 and 200+. As for the HouseHold variable, it will contain the couple+children, couple, single and other levels.
+Transportation and Experience columns will be kept as they are. In case of CompanySize, though, it will be restricted to 3 categories: 1-19, 20-199 and 200+. As for the HouseHold variable, it will contain the couple+children, couple, single and other levels to avoid unnecessary sparsity.
+</div>
 
-```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE}
+```{r, warning=FALSE, message=FALSE}
 switch_household <- function(x) {
   switch(
     x,
@@ -196,31 +375,50 @@ switch_size <- function(x) {
 
 df <- df %>% 
   mutate(
-    CompanySize = vapply(CompanySize, switch_size, character(1), USE.NAMES = FALSE),
-    HouseHold = vapply(HouseHold, switch_household, character(1), USE.NAMES = FALSE),
+    CompanySize = map_chr(CompanySize, switch_size),
+    HouseHold = map_chr(HouseHold, switch_household),
   )
+```
 
+
+```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE, out.width="100%"}
 fluidRow(
-  column(width = 6, df %>% plot_ly(x = ~ CompanySize, type = "histogram") %>% layout(bargap = 0.1)),
-  column(width = 6, df %>% plot_ly(x = ~ HouseHold, type = "histogram") %>% layout(bargap = 0.1))
+  column(width = 6, show_hist("CompanySize", T)),
+  column(width = 6, show_hist("HouseHold", T))
 )
 ```
 
-Next, we will explore variables related to actual time being spent remote and the preferred amount of remote work in hours. The *AfterCovid* variable will be used to refer to a variable expressing preferation, as the further analysis will concentrate on the after-covid times.
+<br>
+<br>
+<br>
 
-```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE}
+# Working system
+
+<div style="text-align: justify;font-size: 16px;">
+
+Next, we will explore variables related to actual time being spent remote and the preferred amount of remote work in hours. The *AfterCovid* variable will be used to refer to a variable expressing people's preferences, as the further analysis will concentrate on the after-covid times.
+
+</div>
+
+```{r, warning=FALSE, message=FALSE}
 df <- df %>% select(-TimeRemotePreffered)
+```
 
+```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE, out.width="100%"}
 fluidRow(
-  column(width = 6, df %>% plot_ly(x = ~ TimeRemote, type = "histogram") %>% layout(bargap = 0.1)),
-  column(width = 6, df %>% plot_ly(x = ~ TimeRemotePrefferedAfterCovid, type = "histogram") %>% layout(bargap = 0.1))
+  column(width = 6, show_hist("TimeRemote", T)),
+  column(width = 6, show_hist("TimeRemotePrefferedAfterCovid", T))
 )
 ```
 
-As we are mostly interested in the remote and hybrid work, we will throw away respondents which spend (almost) all their working hours onsite. Moreover, we will assume that people working remotely in less than in 20% cases will be classified as 'almost onsite', from 20 to 90 - working 'hybrid', and those working 100% will be named 'remote' workers.
 
+<div style="text-align: justify;font-size: 16px;">
 
-```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE}
+As we are mostly interested in the remote and hybrid work, we will throw away respondents who spend (almost) all their working hours onsite. Moreover, we will assume that people working remotely in (less than) 10% cases will be classified as 'almost onsite', from 10 to 90 - working 'hybrid', and those working 100% will be called 'Remote' workers.
+
+</div>
+
+```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE, out.width="100%"}
 df <- df %>% 
   filter(TimeRemote != "Rarely or never") %>% 
   mutate(
@@ -258,53 +456,77 @@ switch_remote_adv <- function(x) {
     "Hybrid"
   )
 }
+
 df <- df %>% 
   mutate(
-    Remote = vapply(Remote, switch_remote, character(1), USE.NAMES = FALSE),
-    RemotePreffered = vapply(RemotePreffered, switch_remote_adv, character(1), USE.NAMES = FALSE)
+    Remote = map_chr(Remote, switch_remote),
+    RemotePreffered = map_chr(RemotePreffered, switch_remote_adv)
   )
+```
 
+```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE, out.width="100%"}
 fluidRow(
-  column(width = 6, df %>% plot_ly(x = ~ Remote, type = "histogram") %>% layout(bargap = 0.1)),
-  column(width = 6, df %>% plot_ly(x = ~ RemotePreffered, type = "histogram") %>% layout(bargap = 0.1))
+  column(width = 6, show_hist("Remote", T)),
+  column(width = 6, show_hist("RemotePreffered", T))
 )
 ```
 
+<br>
+<br>
+<br>
 
-Regarding the *CompanyEncourageToRemote* and *CompanyPreparedForRemote*, just the same as it was with the TimePrefferedAfterCovid, they will be dropped as we are interested in the long-twerm preferencies. 
-As for the EasyCollaborateRemote column, it will not be used throughout the research, as it is correlated with the sp and pb columns which will be discussed later. As for the RecommendRemote and ChooseRemote columns, they will be restricted to yes|no|hard to say categories to avoid small groups division later during the analysis and model creation.
+# Companies' and employees' atttude
 
-```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE}
+<div style="text-align: justify;font-size: 16px;">
+
+Regarding the *CompanyEncourageToRemote* and *CompanyPreparedForRemote*, just the same as it was with the TimePrefferedAfterCovid, they will be dropped as we are interested in the long-term preferences. 
+As for the EasyCollaborateRemote column, it will not be used throughout the research, as it is correlated with the sp and pb columns, which will be examined later. As for the RecommendRemote and ChooseRemote columns, they will be restricted to 'yes'|'no'|'hard to say' categories to avoid small groups division later during the analysis and model creation.
+
+</div>
+
+```{r, warning=FALSE, message=FALSE}
 switch_answer <- function(x) {
-  switch(x, "Strongly disagree" = "no", "Somewhat disagree" = "no", "Neither agree nor disagree" = "hard to say", "Somewhat agree" = "yes", "Strongly agree" = "yes", x)
+  switch(
+    x,
+    "Strongly disagree" = "no",
+    "Somewhat disagree" = "no",
+    "Neither agree nor disagree" = "hard to say",
+    "Somewhat agree" = "yes",
+    "Strongly agree" = "yes", 
+  x)
 }
 
 df <- df %>% 
   select(-c(CompanyEncourageToRemote, CompanyPreparedForRemote, EasyCollaborateRemote)) %>% 
   mutate(
-    RecommendRemote = vapply(RecommendRemote, switch_answer, character(1), USE.NAMES = FALSE),
-    ChooseRemote = vapply(ChoiceToRemoteAfterCovid, switch_answer, character(1), USE.NAMES = FALSE),
+    RecommendRemote = map_chr(RecommendRemote, switch_answer),
+    ChooseRemote = map_chr(ChoiceToRemoteAfterCovid, switch_answer),
+    .keep = "unused"
   )
-  
+```
+
+
+```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE, out.width="100%"}
 fluidRow(
-  column(width = 6, df %>% plot_ly(x = ~ RecommendRemote, type = "histogram") %>% layout(bargap = 0.1)),
-  column(width = 6, df %>% plot_ly(x = ~ ChooseRemote, type = "histogram") %>% layout(bargap = 0.1))
+  column(width = 6, show_hist("RecommendRemote", T)),
+  column(width = 6, show_hist("ChooseRemote", T))
 )
 ```
 
-Going further, as CommonToRemote and EasyToRemote are pretty strngly correlated (see code output), we will use only CommonToRemote one. The same story goes with CompanyEncourageToRemoteAfterCovid and CompanySupportRemoteAfterCovid as it is naturally hard to imagine encouraging remote work without suppoting it.
+<div style="text-align: justify;font-size: 16px;">
 
-```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE}
-switch_answer <- function(x) {
-  switch(x, "Strongly disagree" = "no", "Somewhat disagree" = "no", "Neither agree nor disagree" = "hard to say", "Somewhat agree" = "yes", "Strongly agree" = "yes", x)
-}
+Going further, as CommonToRemote and EasyToRemote are pretty strongly correlated (see code output), we will use only CommonToRemote one. The same story goes with CompanyEncourageToRemoteAfterCovid and CompanySupportRemoteAfterCovid as it is naturally hard to imagine encouraging remote work without supporting it.
 
+</div>
+
+```{r, warning=FALSE, message=FALSE}
 df <- df %>% 
   mutate(
-    EasyRemote = vapply(CompanyEasyToRemote, switch_answer, character(1), USE.NAMES = FALSE),
-    CommonRemote = vapply(CompanyCommonToRemote, switch_answer, character(1), USE.NAMES = FALSE),
-    EncourageRemote = vapply(CompanyEncourageToRemoteAfterCovid, switch_answer, character(1), USE.NAMES = FALSE),
-    SupportRemote = vapply(CompanySupportRemoteAfterCovid, switch_answer, character(1), USE.NAMES = FALSE)
+    EasyRemote = map_chr(CompanyEasyToRemote, switch_answer),
+    CommonRemote = map_chr(CompanyCommonToRemote, switch_answer),
+    EncourageRemote = map_chr(CompanyEncourageToRemoteAfterCovid, switch_answer),
+    SupportRemote = map_chr(CompanySupportRemoteAfterCovid, switch_answer),
+    .keep = "unused"
   )
 ```
 
@@ -315,19 +537,35 @@ print(round(sum(df_temp1$EasyRemote != df_temp1$CommonRemote)/nrow(df_temp1), 4)
 print(round(sum(df_temp2$EncourageRemote != df_temp2$SupportRemote)/nrow(df_temp2), 4)*100)
 ```
 
-
-```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE}
+```{r, warning=FALSE, message=FALSE}
 df <- df %>% select(-c(EasyRemote, EncourageRemote))
+```
 
+```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE, out.width="100%"}
 fluidRow(
-  column(width = 6, df %>% plot_ly(x = ~ CommonRemote, type = "histogram") %>% layout(bargap = 0.1)),
-  column(width = 6, df %>% plot_ly(x = ~ SupportRemote, type = "histogram") %>% layout(bargap = 0.1))
+  column(width = 6, show_hist("CommonRemote", T)),
+  column(width = 6, show_hist("SupportRemote", T))
 )
 ```
 
-Next we continue our analysis with hours-related variables. Firstly, we will replace all the zero variables with 0.01. This will be needed to take into account cases when the difference between onsite and remote hours spent would be noticable. Secondly, we will exclude observations with total hours spent on mentioned activities greater than 24.
+```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE, out.width="100%"}
+df <- df %>% 
+  rename(CompanyAllowChoice = ChooseRemote, CompanyCommonRemote = CommonRemote, CompanySupportRemote = SupportRemote)
+```
 
-```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE}
+<br>
+<br>
+<br>
+
+# Daily activities' distributions
+
+<div style="text-align: justify;font-size: 16px;">
+
+Next, we continue the analysis for activities-related variables. Firstly, we will replace all the zero variables with 0.01. This will be needed to take into account cases, when the difference between onsite and remote hours spent would be very noticeable. Secondly, we will exclude observations with total hours spent on mentioned activities greater than 24.
+
+</div>
+
+```{r, warning=FALSE, message=FALSE}
 df <- df %>% 
   mutate(
     WorkOnsiteH = ifelse(WorkOnsiteH == 0, 0.01, WorkOnsiteH),
@@ -352,35 +590,79 @@ df <- df %>%
     WorkingHoursDiff = ifelse(is.na(WorkingHoursDiff), 0, WorkingHoursDiff),
     PersonalHoursDiff = ifelse(is.na(PersonalHoursDiff), 0, PersonalHoursDiff),
     DomesticHoursDiff = ifelse(is.na(DomesticHoursDiff), 0, DomesticHoursDiff),
+    CommuteHoursDiff = ifelse(is.na(CommuteHoursDiff), 0, DomesticHoursDiff),
   ) %>% 
   filter(TotalHoursOnsite <= 24, TotalHoursRemote<=24, Age < 100) %>% 
   select(-c(TotalHoursRemote, TotalHoursOnsite))
+```
 
+```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE, out.width="100%"}
 fluidRow(
-  column(width = 6, df %>% plot_ly(x = ~ WorkingHoursDiff, type = "histogram") %>% layout(bargap = 0.1)),
-  column(width = 6, df %>% plot_ly(x = ~ CommuteHoursDiff, type = "histogram") %>% layout(bargap = 0.1))
+  column(width = 6, show_hist("WorkingHoursDiff", T)),
+  column(width = 6, show_hist("CommuteHoursDiff", T)),
 )
 ```
 
-```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE}
+```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE, out.width="100%"}
 fluidRow(
-  column(width = 6, df %>% plot_ly(x = ~ PersonalHoursDiff, type = "histogram") %>% layout(bargap = 0.1)),
-  column(width = 6, df %>% plot_ly(x = ~ DomesticHoursDiff, type = "histogram") %>% layout(bargap = 0.1))
+  column(width = 6, show_hist("PersonalHoursDiff", T)),
+  column(width = 6, show_hist("DomesticHoursDiff", T))
 )
 ```
 
-Looking at the densities of mentioned variables, it seems like a log-transformation or simple value replacement is supposely to be used.
+<div style="text-align: justify;font-size: 16px;">
 
+Looking at the densities of mentioned variables, it seems like a value replacement is needed to be used. Therefore, values greater than 100 or lower than -100 will be recoded as follows:
 
-One of the hardest variables in terms of data preparation are the biggest and smallest challenged faced during the remote work. It will be calculated as follows:
-1) all the unique answers for questions bp1-bp15 will be counted for each individual
-2) all the unique answers for questions sp1-sp15 will be counted for each individual
-3) the aforementioned tables will be joined, and the counts for each unique answers for each ID (respondent) will be subtracted
-4) 0 values will be replaced with 'no clear challenge'
-5) negative values will be replaced with 'Did not face any big challenge'
-6) the most popular challenge,though, will be classified as the biggest challenge faced
+</div>
 
-```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE}
+```{r, warning=FALSE, message=FALSE}
+replace_diff <- function(x) {ifelse(x>100, 100, x) %>% ifelse(.< -100, -100, .)}
+
+df <- df %>% 
+  mutate(across(c("WorkingHoursDiff", "PersonalHoursDiff", "DomesticHoursDiff", "CommuteHoursDiff"), replace_diff))
+```
+
+```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE, out.width="100%"}
+fluidRow(
+  column(width = 6, show_hist("WorkingHoursDiff", T)),
+  column(width = 6, show_hist("CommuteHoursDiff", T)),
+)
+```
+
+```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE, out.width="100%"}
+fluidRow(
+  column(width = 6, show_hist("PersonalHoursDiff", T)),
+  column(width = 6, show_hist("DomesticHoursDiff", T))
+)
+```
+
+<div style="text-align: justify;font-size: 16px;">
+
+However, it is still hard to see any dependency, as the biggest bin takes both negative and positive values. Therefore, we will postpone the deeper analysis of the mentioned variables for later.
+
+</div>
+
+<br>
+<br>
+<br>
+
+# Biggest challenge
+
+<div style="text-align: justify;font-size: 16px;">
+
+One of the hardest variable in terms of data preparation are the biggest challenge, faced during the remote work period. It will be calculated as follows:
+
+1) All the unique answers for questions bp1-bp15 will be counted for each individual;
+2) All the unique answers for questions sp1-sp15 will be counted for each individual;
+3) The aforementioned tables will be joined, and the counts for each unique answers for each individual will be subtracted;
+4) 0 values will be replaced with 'No significant challenge';
+5) Negative values will be replaced with 'No specified challenge';
+6) The most popular challenge, though, will be classified as the biggest challenge faced.
+
+</div>
+
+```{r, warning=FALSE, message=FALSE}
 more_significant_tbl <- df %>%
   select(ID, starts_with("bp")) %>% 
   gather(key = "column", value = "value", -ID) %>%
@@ -414,7 +696,6 @@ problems_tbl <- more_significant_tbl %>%
     value = ifelse(n==0, "No specified challenge", value)
   ) %>% 
   group_by(ID) %>%
-  #filter(n > 0) %>% 
   rename(nbr = n) %>% 
   top_n(n = 1) %>%
   mutate(rank = paste0("top", row_number())) %>%
@@ -427,14 +708,19 @@ problems_tbl <- more_significant_tbl %>%
 
 
 df <- df %>% select(-c(starts_with("bp"), starts_with("sp"))) %>% left_join(problems_tbl, by = "ID")
-
-df %>% plot_ly(x = ~ BiggestChallenge, type = "histogram") %>% layout(bargap = 0.1)
 ```
 
-As we could see, the resulted BiggestChallenge column is too sparse. Therefore, we will combine all the IT/equipment issues into single one called 'Technical'. We will also unite my workspace and my living situation answers into single one. The rest will be just shortened to more human-like options.
+```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE, out.width="100%"}
+show_hist("BiggestChallenge")
+```
 
+<div style="text-align: justify;font-size: 16px;">
 
-```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE}
+As we could see, the resulted BiggestChallenge column is too sparse. Therefore, we will combine all the IT/equipment issues into single one called 'Technical'. We will also unite 'my workspace' and 'my living situation' answers into single one. The other options will be just shortened to more human-like variants.
+
+</div>
+
+```{r, warning=FALSE, message=FALSE}
 switch_challenge <- function(x) {
   switch(
     x,
@@ -455,15 +741,26 @@ switch_challenge <- function(x) {
     x
   )
 }
-df <- df %>% mutate(BiggestChallenge = vapply(BiggestChallenge, switch_challenge, character(1), USE.NAMES = FALSE))
-
-df %>% plot_ly(x = ~ BiggestChallenge, type = "histogram") %>% layout(bargap = 0.1)
+df <- df %>% mutate(BiggestChallenge = map_chr(BiggestChallenge, switch_challenge))
 ```
 
+```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE, out.width="100%"}
+show_hist("BiggestChallenge")
+```
 
-Almost the same procedure will be applied to the biggest benefit problem with the only difference in final category's names
+<br>
+<br>
+<br>
 
-```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE}
+# Biggest benefit
+
+<div style="text-align: justify;font-size: 16px;">
+
+Almost the same procedure will be applied to the biggest benefit variable with the only difference in final category's names.
+
+</div>
+
+```{r, warning=FALSE, message=FALSE}
 more_significant_tbl <- df %>%
   select(ID, starts_with("ba")) %>% 
   gather(key = "column", value = "value", -ID) %>%
@@ -508,14 +805,19 @@ changes_tbl <- more_significant_tbl %>%
   select(ID, BiggestBenefit)
 
 df <- df %>% select(-c(starts_with("wa"), starts_with("ba"))) %>% left_join(changes_tbl, by = "ID")
-
-df %>% plot_ly(x = ~ BiggestBenefit, type = "histogram") %>% layout(bargap = 0.1)
 ```
 
+```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE, out.width="100%"}
+show_hist("BiggestBenefit")
+```
 
-As in case of BiggestChallenge column, the number of categories will be cut down. Ability to socialize and other relatioship variables will be united into single group. Commuting, on-learinng opportunities will be united into category "Professional". Family responsibilities will be included as part of work-life balance The left 3 categories will be left unchanged.
+<div style="text-align: justify;font-size: 16px;">
 
-```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE}
+As in case of BiggestChallenge column, the number of categories will be cut down. Ability to socialize and other relationship variables will be united into a single group. Commuting, on-learning opportunities will be united into category 'Professional'. Family responsibilities will be included as part of work-life balance. The left 3 categories will be left unchanged.
+
+</div>
+
+```{r, warning=FALSE, message=FALSE}
 switch_benefit <- function(x) {
   switch(
     x,
@@ -535,31 +837,78 @@ switch_benefit <- function(x) {
   )
 }
 
-df <- df %>% mutate(BiggestBenefit = vapply(BiggestBenefit, switch_benefit, character(1), USE.NAMES = FALSE))
-
-df %>% plot_ly(x = ~ BiggestBenefit, type = "histogram") %>% layout(bargap = 0.1)
+df <- df %>% mutate(BiggestBenefit = map_chr(BiggestBenefit, switch_benefit))
 ```
 
-
-Last but not least is the Prodcutivity variable which will be the core interest in the further research.
-
-```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE}
-df %>% plot_ly(x = ~ Productivity, type = "histogram") %>% layout(bargap = 0.1)
+```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE, out.width="100%"}
+show_hist("BiggestBenefit")
 ```
 
-We should note that there are less people that claims working less productive by 40% and 50% percent. it might be also related with the strach of being suspected in working not effectively and being fired, as the productivity was measured by the respondents, not third parties. Respondents might also overestimate their productivity to make more impression, especially if we are talking about small companies (ex. 1-4 people), where it will be pretty obvious which answers belong to whom, regarding the anonimousity of such a survey. Nevertheless, this aspect will be discussed further during the very research.
+<br>
+<br>
+<br>
 
-The study will concentrate on the very fact if the change in productivity occured at all and in what direction. as we will not be interested in the degree of that change, we will restrict the variable to only 3 possible options.
+# Productivity
 
-```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE}
-df <- df %>% mutate(Productivity = ifelse(str_detect(Productivity, "less"), "Dropped", ifelse(str_detect(Productivity, "more"), "Increased", "Same level")))
+<div style="text-align: justify;font-size: 16px;">
 
-df %>% plot_ly(x = ~ Productivity, type = "histogram") %>% layout(bargap = 0.1)
+Last but not least is the Productivity variable which will be the core interest in the further research.
+
+</div>
+
+```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE, out.width="100%"}
+show_hist("Productivity")
 ```
 
-In this way, we cleared dataset to up to 1250 observations with 27 potential regressors. The datasat will be saved to be used in STATA
-```{r}
-df
+<div style="text-align: justify;font-size: 16px;">
 
+We can't but mention that there are much less people claiming working less productive by 40% and 50% percent. It might be also related with the fear of being suspected in working not effectively and being fired, as the productivity was measured by the respondents, not third parties. Respondents might also overestimate their productivity to make impression, especially if we are talking about small companies (ex. 1-4 people), where it will be pretty obvious which answers belong to whom, regarding the animosity of such a survey. Nevertheless, this aspect will be discussed further during the very research.
+
+The study will concentrate on the very fact, if the change in productivity occurred at all, and in what direction. As we will not be interested in the degree of that change, we will restrict the variable to only 3 possible options: dropped, increased or stay the same.
+
+</div>
+
+```{r, warning=FALSE, message=FALSE}
+df <- df %>% 
+  mutate(
+    Productivity = ifelse(str_detect(Productivity, "less"), "Dropped", ifelse(str_detect(Productivity, "more"), "Increased", "Same level"))
+  )
+```
+
+```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE, out.width="100%"}
+show_hist("Productivity")
+```
+
+# Finalization
+
+<div style="text-align: justify;font-size: 16px;">
+
+In this way, we cleared dataset to up to 1250 observations with 22 potential regressors. The dataset will be saved to be used later in STATA.
+
+</div>
+
+```{r, warning=FALSE, message=FALSE}
 df %>% write_csv("data/remote_productivity.csv")
+
+print(df %>% ncol())
+print(df %>% nrow())
 ```
+
+```{r, warning=FALSE, message=FALSE, fig.show="hold", echo=FALSE, out.width="100%"}
+df %>% 
+    datatable(
+      extensions = 'FixedColumns',
+      rownames = FALSE,
+      options = list(
+        initComplete = JS(
+          "function(settings, json) {",
+          "$(this.api().table().header()).css({'background-color': '#2c3e50', 'color': '#2c3e50'});",
+          "}"),
+        scrollX = TRUE, scrollCollapse = TRUE,
+        pageLength = 10, info = FALSE, searching = FALSE, paging = TRUE, ordering = FALSE)
+    )
+```
+
+<br>
+<br>
+<br>
